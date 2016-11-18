@@ -1,5 +1,4 @@
 from matplotlib.pyplot import *
-from configuration import *
 import pyfits as pf
 import numpy as np
 
