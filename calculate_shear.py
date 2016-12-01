@@ -57,7 +57,8 @@ for ilens in range(Nlens):
         tmp *= sigma
         tmp *= (1./sigma_cr[k])
 
-        rsq = np.abs(r)**2
+        rsq = tmp.real**2
+        rsq += tmp.imag**2
         ind = rsq > eps**2
         gamma[k] += np.sum(tmp[ind])
         #print 'tmp = ',tmp
