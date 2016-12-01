@@ -11,6 +11,8 @@ import jc_lib as jc
 import os, sys
 import os.path
 
+import time
+
 #############################
 # Cosmological Parameters
 #############################
@@ -24,6 +26,7 @@ G = 6.67300e-11     # m^3 / (kg s^2)
 H_0 = 100.          # km h / (s Mpc)
 
 def get_lens(nx, ny, xmin, xmax, ymin, ymax, ilens):
+    t1 = time.time()
     sigma = np.zeros((nx, ny))
     xedge = np.linspace(xmin, xmax, nx+1)
     yedge = np.linspace(ymin, ymax, ny+1)
@@ -173,12 +176,16 @@ def get_lens(nx, ny, xmin, xmax, ymin, ymax, ilens):
 
         f = interp1d(r_grid, sigma_r)
 
-        for i in range(len(xmid)):
-            for j in range(len(ymid)):
+        xx, yy = np.meshgrid(xmid, ymid)
+        r = np.sqrt(xx**2 + yy**2)
+        sigma = f(r)
+        sigma[r > redge] = 0.
+        #for i in range(len(xmid)):
+            #for j in range(len(ymid)):
                 
-                r = np.sqrt(xmid[i]**2 + ymid[j]**2)
-                sigma[i,j] = f(r)
-                if(r > redge):sigma[i,j] = 0.
+                #r = np.sqrt(xmid[i]**2 + ymid[j]**2)
+                #sigma[i,j] = f(r)
+                #if(r > redge):sigma[i,j] = 0.
         sigma = sigma / (1e12)     # Msol h/pc^2
         #############################
         # Calculate the projected density profile for subhaloes
@@ -205,11 +212,13 @@ def get_lens(nx, ny, xmin, xmax, ymin, ymax, ilens):
                 sigma_sub_r[k] = 2.*integrate.simps(rho, rlos)
             f = interp1d(r_grid, sigma_sub_r)
 
-            for i in range(len(xmid)):
-                for j in range(len(ymid)):
-                    r = np.sqrt(xmid[i]**2 + ymid[j]**2)
-                    sigma_sub[i,j] = f(r)
-                    if(r > redge):sigma_sub[i,j] = 0.
+            sigma_sub = f(r)
+            sigma_sub[r > redge] = 0.
+            #for i in range(len(xmid)):
+                #for j in range(len(ymid)):
+                    #r = np.sqrt(xmid[i]**2 + ymid[j]**2)
+                    #sigma_sub[i,j] = f(r)
+                    #if(r > redge):sigma_sub[i,j] = 0.
             sigma_sub = sigma_sub / (1e12) # Msol h/pc^2
 
             ix = np.searchsorted(xmid, xsub[isub])
@@ -248,4 +257,7 @@ def get_lens(nx, ny, xmin, xmax, ymin, ymax, ilens):
     cs = contour(xgrid, ygrid, sigma.transpose(), levels = clevel, lw = 5)
     plotname = 'sigma2D_testcase%s.pdf'%(test_case)
     savefig('plots/' + plotname)
+
+    t2 = time.time()
+    print 'Time for get_lens = ',t2-t1
     return [sigma, zl, ds, xmid, ymid]
