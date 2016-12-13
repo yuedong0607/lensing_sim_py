@@ -25,6 +25,45 @@ km_per_mpc = 3.08568e19
 G = 6.67300e-11     # m^3 / (kg s^2)
 H_0 = 100.          # km h / (s Mpc)
 
+def fill_subhalo(ixsub, iysub, sigma, sigma_sub):
+    fx = [-1, 0, 1, 0]
+    fy = [0, 1, 0, -1]
+    xnode = np.zeros(nx*ny)
+    ynode = np.zeros(nx*ny)
+    xnode_sub = np.zeros(nx*ny)
+    ynode_sub = np.zeros(nx*ny)
+    xnode[0] = ixsub
+    ynode[0] = iysub
+    xnode_sub[0] = nx/2
+    ynode_sub[0] = ny/2
+    head = -1
+    tail = 0
+    check = np.zeros((nx, ny))
+    check[nx/2, ny/2] = 1
+    while(head < tail):
+        head += 1
+        x = xnode[head]
+        y = ynode[head]
+        xsub = xnode_sub[head]
+        ysub = ynode_sub[head]
+        if(sigma_sub[xsub, ysub] > sigma[x, y]):
+            sigma[x, y] = sigma_sub[xsub, ysub]
+            for k in range(4):
+                xx = x + fx[k]
+                yy = y + fy[k]
+                xx_s = xsub + fx[k]
+                yy_s = ysub + fy[k]
+                if((xx >= 0) & (xx < nx) & (yy >= 0) & (yy < ny) & (xx_s >= 0) & (xx_s < nx) & (yy_s >= 0) & (yy_s < ny)):
+                    if(check[xx_s, yy_s] == 0):
+                        tail += 1   
+                        xnode[tail] = xx
+                        ynode[tail] = yy
+                        xnode_sub[tail] = xx_s
+                        ynode_sub[tail] = yy_s
+                        check[xx_s, yy_s] = 1
+    return sigma
+
+#@profile
 def get_lens(nx, ny, xmin, xmax, ymin, ymax, ilens):
     t1 = time.time()
     sigma = np.zeros((nx, ny))
@@ -47,7 +86,7 @@ def get_lens(nx, ny, xmin, xmax, ymin, ymax, ilens):
     # SIS
     #############################
     if(test_case == 'SIS'):
-        print 'Creating a SIS profile...'
+        print('Creating a SIS profile...')
         zl = 0.2
         v_c = 300 # km/s
         r_c = 0.001 # Mpc/h
@@ -88,7 +127,7 @@ def get_lens(nx, ny, xmin, xmax, ymin, ymax, ilens):
     # NFW
     #############################
     if(test_case == 'NFW'):
-        print 'Creating a NFW profile...'
+        print('Creating a NFW profile...')
         M200 = 1e14      # Msol /h
         zl = 0.2
 
@@ -96,7 +135,7 @@ def get_lens(nx, ny, xmin, xmax, ymin, ymax, ilens):
         rho_m = rho_cr * om_m * (1.+zl)**3
         R200 = (3.*M200 / (4.*200.*pi*rho_m))**(1./3.) # Mpc/h
 
-        print 'R200 = ', R200
+        print('R200 = ', R200)
 
         # From Diemer and Kravtsov and references therein
         c_A = 11.39
@@ -148,7 +187,7 @@ def get_lens(nx, ny, xmin, xmax, ymin, ymax, ilens):
         rho_cr = jc.critical_density(zl)         # Msol h^2 / Mpc^3
         rho_m = rho_cr * om_m * (1.+zl)**3
         R200 = (3.*M200 / (4.*200.*pi*rho_m))**(1./3.) # Mpc/h
-        print 'R200 = ', R200
+        print('R200 = ', R200)
         
         Nsub = rp.getNsub(M200)
         xsub, ysub, msub = rp.getsubhalo(Nsub, R200)
@@ -191,7 +230,7 @@ def get_lens(nx, ny, xmin, xmax, ymin, ymax, ilens):
         # Calculate the projected density profile for subhaloes
         #############################
         for isub in range(Nsub):
-            print 'generating subhalo #%d...'%(isub)
+            print('generating subhalo #%d...'%(isub))
             sigma_sub = np.zeros((nx, ny))
             sigma_temp = np.zeros((nx, ny))
             # TODO different mass concentration relation for subhaloes?
@@ -223,12 +262,13 @@ def get_lens(nx, ny, xmin, xmax, ymin, ymax, ilens):
 
             ix = np.searchsorted(xmid, xsub[isub])
             iy = np.searchsorted(ymid, ysub[isub])
-            for i in range(len(xmid)):
-                for j in range(len(ymid)):
-                    xx = (i - (nx/2) + ix)
-                    yy = (j - (ny/2) + iy)
-                    if((xx >= 0) & (xx < nx) & (yy >= 0) & (yy < ny)):
-                        sigma[xx,yy] = max(sigma[xx,yy], sigma_sub[i,j])
+            sigma = fill_subhalo(ix, iy, sigma, sigma_sub)
+            #for i in range(len(xmid)):
+            #    for j in range(len(ymid)):
+            #        xx = (i - (nx/2) + ix)
+            #        yy = (j - (ny/2) + iy)
+            #        if((xx >= 0) & (xx < nx) & (yy >= 0) & (yy < ny)):
+            #            sigma[xx,yy] = max(sigma[xx,yy], sigma_sub[i,j])
         subhalo_file = 'members-list_lens%dof%d.fits'%(ilens, Nlens)
         key = ['x', 'y']
         form = ['D', 'D']
@@ -259,5 +299,5 @@ def get_lens(nx, ny, xmin, xmax, ymin, ymax, ilens):
     savefig('plots/' + plotname)
 
     t2 = time.time()
-    print 'Time for get_lens = ',t2-t1
+    print('Time for get_lens = ',t2-t1)
     return [sigma, zl, ds, xmid, ymid]
